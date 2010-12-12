@@ -10,6 +10,11 @@
 YASnippet を秀丸に移植してみた。本家 v0.61 のサブセット的なもの。
 本家 Emacs 版はこちら → http://code.google.com/p/yasnippet/
 
+■作った人
+mobitan
+http://mobitan.org/
+http://twitter.com/mobitant
+
 ■動作環境
 秀丸エディタ v8.00 以降
 Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
@@ -25,9 +30,9 @@ Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 	└─Yas
 	    │  readme.txt
 	    │  license.txt
-	    │  yashide.mac
-	    │  yashide.wsf
-	    ├─lib
+	    │  yas.mac
+	    │  yas.wsf
+	    ├─bin
 	    │    (略)
 	    └─snippets
 	        └─text-mode
@@ -90,7 +95,7 @@ Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 	   __[_____  ]  :消滅する
 
 ■カスタマイズ
-プレースホルダの色は変更可能。lib\placeholder.mac の冒頭部分を参照。
+プレースホルダの色は変更可能。bin\placeholder.mac の冒頭部分を参照。
 他はあまりカスタマイズできない。
 
 ■謝辞
@@ -99,7 +104,6 @@ Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 　http://nanto.asablo.jp/blog/2007/09/12/1793275
 ・JSON2.js
 　http://www.json.org/js.html
-
 もちろん、本家にも最大の謝意を。
 ・yasnippet
 　http://code.google.com/p/yasnippet/
@@ -107,11 +111,6 @@ Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 ■ライセンス
 MIT ライセンス
 http://www.opensource.org/licenses/mit-license.php
-
-■作った人
-mobitan
-http://mobitan.org/
-http://twitter.com/mobitant
 
 ■連絡先
 秀丸っぽい談話室
