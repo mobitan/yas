@@ -26,31 +26,30 @@ Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 4. インストール後のフォルダ構成が次のとおりになっていること。
 
 	マクロフォルダ
-	│  yas.mac
-	└─Yas
-	    │  readme.txt
-	    │  license.txt
-	    │  yas.mac
-	    │  yas.wsf
+	│　Yasnippet.mac
+	└─Yasnippet
+	    │　readme.txt
+	    │　license.txt
+	    │　yas.mac
 	    ├─bin
-	    │    (略)
+	    │　  (略)
 	    └─snippets
 	        └─text-mode
-	            │  email
-	            │  time
+	            │　email
+	            │　time
 	            ├─cc-mode
-	            │  │  do
-	            │  │  for
-	            │  │  if
-	            │  │  (以下略)
-	            │  ├─c++-mode
-	            │  └─(以下略)
+	            │　│　do
+	            │　│　for
+	            │　│　if
+	            │　│　(以下略)
+	            │　├─c++-mode
+	            │　└─(以下略)
 	            ├─css-mode
 	            └─(以下略)
 
 ■アンインストール
 1. マクロ登録を解除する。
-2. yas.mac と Yas フォルダを削除する。
+2. Yasnippet.mac と Yasnippet フォルダを削除する。
 
 ■使い方
 0. 本家のドキュメントを一通り読んで理解する。(必須)
