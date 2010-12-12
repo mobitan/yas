@@ -4,117 +4,117 @@
 //  	by mobitan  http://mobitan.org/
 // 
 
-�b��h�L�������g (2010/12/12)
+暫定ドキュメント (2010/12/12)
 
-������͉�?
-YASnippet ���G�ۂɈڐA���Ă݂��B�{�� v0.61 �̃T�u�Z�b�g�I�Ȃ��́B
-�{�� Emacs �ł͂����� �� http://code.google.com/p/yasnippet/
+■これは何?
+YASnippet を秀丸に移植してみた。本家 v0.61 のサブセット的なもの。
+本家 Emacs 版はこちら → http://code.google.com/p/yasnippet/
 
-�������
-�G�ۃG�f�B�^ v8.00 �ȍ~
-Windows Script Host v5.6 �ȍ~ (Windows XP �ȍ~�ɕW������)
+■動作環境
+秀丸エディタ v8.00 以降
+Windows Script Host v5.6 以降 (Windows XP 以降に標準搭載)
 
-���C���X�g�[��
-1. �A�[�J�C�u���}�N���t�H���_�ɉ𓀂���B
-2. yas.mac ���}�N���o�^����B
-3. �X�j�y�b�g�� snippets �t�H���_�ɓ����B�Ƃ肠�����{�Ƃ̂��ۂ��ƒ��ՃQ�t���Q�t��
-4. �C���X�g�[����̃t�H���_�\�������̂Ƃ���ɂȂ��Ă��邱�ƁB
+■インストール
+1. アーカイブをマクロフォルダに解凍する。
+2. yas.mac をマクロ登録する。
+3. スニペットを snippets フォルダに入れる。とりあえず本家のを丸ごと頂戴ゲフンゲフン
+4. インストール後のフォルダ構成が次のとおりになっていること。
 
-	�}�N���t�H���_
-	��  yas.mac
-	����Yas
-	    ��  readme.txt
-	    ��  license.txt
-	    ��  yashide.mac
-	    ��  yashide.wsf
-	    ����lib
-	    ��    (��)
-	    ����snippets
-	        ����text-mode
-	            ��  email
-	            ��  time
-	            ����cc-mode
-	            ��  ��  do
-	            ��  ��  for
-	            ��  ��  if
-	            ��  ��  (�ȉ���)
-	            ��  ����c++-mode
-	            ��  ����(�ȉ���)
-	            ����css-mode
-	            ����(�ȉ���)
+	マクロフォルダ
+	│  yas.mac
+	└─Yas
+	    │  readme.txt
+	    │  license.txt
+	    │  yashide.mac
+	    │  yashide.wsf
+	    ├─lib
+	    │    (略)
+	    └─snippets
+	        └─text-mode
+	            │  email
+	            │  time
+	            ├─cc-mode
+	            │  │  do
+	            │  │  for
+	            │  │  if
+	            │  │  (以下略)
+	            │  ├─c++-mode
+	            │  └─(以下略)
+	            ├─css-mode
+	            └─(以下略)
 
-���A���C���X�g�[��
-1. �}�N���o�^����������B
-2. yas.mac �� Yas �t�H���_���폜����B
+■アンインストール
+1. マクロ登録を解除する。
+2. yas.mac と Yas フォルダを削除する。
 
-���g����
-0. �{�Ƃ̃h�L�������g����ʂ�ǂ�ŗ�������B(�K�{)
-1. �}�N�����N������B
-2. ���������ꂽ�瓚����B
-3. �X�j�y�b�g���W�J���ꂽ��v���[�X�z���_���̕������ҏW����B
-5. �v���[�X�z���_�O�� $0 �ŕҏW����ƏI���B
+■使い方
+0. 本家のドキュメントを一通り読んで理解する。(必須)
+1. マクロを起動する。
+2. 何か聞かれたら答える。
+3. スニペットが展開されたらプレースホルダ内の文字列を編集する。
+5. プレースホルダ外か $0 で編集すると終了。
 
-����������
-�Â����X�j�y�b�g�͉��߂ł��Ȃ��B
-	$(�`) �͖��������B
-	`�`` �� `yas/selected-text` �̂ݑΉ��B����ȊO�͖��������B
-�v���[�X�z���_�ҏW���͎��̑��삵���ł��Ȃ��B
-	�����L�[: �������� (IME �o�R�͕s��)
-	Backspace �L�[: �o�b�N�X�y�[�X
-	Enter �L�[: ���s
-	Tab �L�[: �v���[�X�z���_�ړ�
-	�J�[�\���L�[: �J�[�\���ړ�
-	Shift+�J�[�\���L�[: �͈͑I��
-	Ctrl+X �L�[: �؂���
-	Ctrl+C �L�[: �R�s�[
-	Ctrl+V �L�[: �\��t��
-	Esc �L�[: �I��
-�F�͕K�������v���[�X�z���_�͈̔͂ƈ�v���Ȃ��B
+■制限事項
+凝ったスニペットは解釈できない。
+	$(～) は無視される。
+	`～` は `yas/selected-text` のみ対応。それ以外は無視される。
+プレースホルダ編集中は次の操作しかできない。
+	文字キー: 文字入力 (IME 経由は不可)
+	Backspace キー: バックスペース
+	Enter キー: 改行
+	Tab キー: プレースホルダ移動
+	カーソルキー: カーソル移動
+	Shift+カーソルキー: 範囲選択
+	Ctrl+X キー: 切り取り
+	Ctrl+C キー: コピー
+	Ctrl+V キー: 貼り付け
+	Esc キー: 終了
+色は必ずしもプレースホルダの範囲と一致しない。
 
-�������I�Șb
-�u���ݓ��͒��̃v���[�X�z���_�ԍ��v�Ƃ������͎����ĂȂ��āA�J�[�\���ʒu���炻�̂ǎZ�o����B
-�v���[�X�z���_�͏d�Ȃ荇���ꍇ������B�F�͔ԍ��̎Ⴂ���ɓh��d�˂���B�܂� ${1:AA${2:BB}AA} �Ȃ�uBB�v�� $2 �̐F�ɂȂ邪�A${2:BB${1:AA}BB} ���ƁuAA�v�� $1 �̐F�ɂȂ炸�A�S�̂� $2 �̐F�ɂȂ�B
-�v���[�X�z���_�����m���אڂ��Ă���ꍇ�A���̋��ڂɓ��͂��ꂽ�����͗����̃v���[�X�z���_�Ɋ܂܂��B�Ⴆ�� ${1:AAA}${2:BBB} ���uAAABBB�v�ɓW�J����� �� Tab �L�[�������āuBBB�v��I�� �� �uXXX�v����͂����ꍇ�A���ʂƂ��� $1 �́uAAAXXX�v�ɁA$2 �́uXXX�v�ɂȂ�A$1 �̒��� $2 ���܂܂��`�ɂȂ�B
-�~���[ M ���ʂ̃v���[�X�z���_ P �Ɋ܂܂�Ă���ꍇ�AM ������������Ă� P �ɂ͔��f����Ȃ��B�ӂ��̃v���[�X�z���_���݂��ɑ���̃~���[���܂�ł��Ă����킹���̂悤�ɂ͂Ȃ�Ȃ��B
-�͈͑I�����A�ҏW��Ƀv���[�X�z���_�����ł��邩���Ȃ����́A�ҏW�O�̑I��͈� [] �ƃv���[�X�z���_ __ �̈ʒu�֌W�ɂ���Č��܂�B
-	[ ]________     :���ł��Ȃ�
-	   ________[ ]  :���ł��Ȃ�
-	   __[__]__     :���ł��Ȃ�
-	   __[_____]    :���ł��Ȃ�
-	  [_____]__     :���ł��Ȃ�
-	  [________]    :���ł��Ȃ�
-	[  ________  ]  :���ł���
-	[  ________]    :���ł���
-	[  _____]__     :���ł���
-	  [________  ]  :���ł���
-	   __[_____  ]  :���ł���
+■内部的な話
+「現在入力中のプレースホルダ番号」という情報は持ってなくて、カーソル位置からそのつど算出する。
+プレースホルダは重なり合う場合がある。色は番号の若い順に塗り重ねられる。つまり ${1:AA${2:BB}AA} なら「BB」は $2 の色になるが、${2:BB${1:AA}BB} だと「AA」は $1 の色にならず、全体が $2 の色になる。
+プレースホルダが同士が隣接している場合、その境目に入力された文字は両方のプレースホルダに含まれる。例えば ${1:AAA}${2:BBB} が「AAABBB」に展開される → Tab キーを押して「BBB」を選択 → 「XXX」を入力した場合、結果として $1 は「AAAXXX」に、$2 は「XXX」になり、$1 の中に $2 が含まれる形になる。
+ミラー M が別のプレースホルダ P に含まれている場合、M が書き換わっても P には反映されない。ふたつのプレースホルダが互いに相手のミラーを含んでいても合わせ鏡のようにはならない。
+範囲選択時、編集後にプレースホルダが消滅するかしないかは、編集前の選択範囲 [] とプレースホルダ __ の位置関係によって決まる。
+	[ ]________     :消滅しない
+	   ________[ ]  :消滅しない
+	   __[__]__     :消滅しない
+	   __[_____]    :消滅しない
+	  [_____]__     :消滅しない
+	  [________]    :消滅しない
+	[  ________  ]  :消滅する
+	[  ________]    :消滅する
+	[  _____]__     :消滅する
+	  [________  ]  :消滅する
+	   __[_____  ]  :消滅する
 
-���J�X�^�}�C�Y
-�v���[�X�z���_�̐F�͕ύX�\�Blib\placeholder.mac �̖`���������Q�ƁB
-���͂��܂�J�X�^�}�C�Y�ł��Ȃ��B
+■カスタマイズ
+プレースホルダの色は変更可能。lib\placeholder.mac の冒頭部分を参照。
+他はあまりカスタマイズできない。
 
-���ӎ�
-���L�̃I�[�v���\�[�X�\�t�g�E�F�A�𗘗p�����Ă��������܂����B���肪�Ƃ��������܂��B
-�EGin
-�@http://nanto.asablo.jp/blog/2007/09/12/1793275
-�EJSON2.js
-�@http://www.json.org/js.html
+■謝辞
+下記のオープンソースソフトウェアを利用させていただきました。ありがとうございます。
+・Gin
+　http://nanto.asablo.jp/blog/2007/09/12/1793275
+・JSON2.js
+　http://www.json.org/js.html
 
-�������A�{�Ƃɂ��ő�̎ӈӂ��B
-�Eyasnippet
-�@http://code.google.com/p/yasnippet/
+もちろん、本家にも最大の謝意を。
+・yasnippet
+　http://code.google.com/p/yasnippet/
 
-�����C�Z���X
-MIT ���C�Z���X
+■ライセンス
+MIT ライセンス
 http://www.opensource.org/licenses/mit-license.php
 
-��������l
+■作った人
 mobitan
 http://mobitan.org/
 http://twitter.com/mobitant
 
-���A����
-�G�ۂ��ۂ��k�b��
+■連絡先
+秀丸っぽい談話室
 http://forum.mobitan.org/hm/
 
 //  		(C) mobitan 2010
