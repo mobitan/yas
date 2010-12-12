@@ -1,0 +1,7 @@
+if (version < 800) {
+	$$currver = str(version / 100) + "." + rightstr(str(version), 2);
+	question "YASnippet Hidemalized は秀丸エディタ v8.00 以降で使えます。\n現在お使いの秀丸エディタは v" + $$currver + " です。\n最新版の秀丸エディタをダウンロードしますか?";
+	if (result) run "rundll32 url.dll,FileProtocolHandler \"http://hide.maruo.co.jp/software/hidemaru.html\"";
+	endmacroall;
+}
+execmacro currentmacrodirectory + "\\Yasnippet\\yas.mac";
