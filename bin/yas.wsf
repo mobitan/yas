@@ -1,0 +1,367 @@
+<?xml version="1.0" encoding="UTF-8" standalone="yes" ?>
+<!--
+// 
+//  	YASnippet Hidemarized
+//  	メインスクリプト (2010/12/12)
+//  	by mobitan  http://mobitan.org/
+// 
+
+// [in]
+// 引数: 次の組み合わせのいずれか。
+//   "モード設定ファイル" "キャッシュフォルダ" "スニペットルートフォルダ" .拡張子 [キーワード]
+//   "モード設定ファイル" "キャッシュフォルダ" "スニペットファイル"
+// 標準入力: 選択文字列
+// 
+// [out]
+// 返り値: 
+//   0: 完了。展開されたスニペット文字列とプレースホルダ情報が出力される。
+//   1: スニペット不明。指定されたキーワードに対応するスニペットが複数存在する。
+//   2: キーワード不明。指定されたキーワードに対応するスニペットが存在しない。
+//   3: フォルダ不明。指定されたモードに対応するフォルダが存在しない。
+//   4: モード不明。指定された拡張子に対応するモードが定義されていない。
+//   9: 不正な引数、ファイル／フォルダが存在しない、その他のエラー。
+// 標準出力: 展開されたスニペット文字列
+// 標準エラー出力: プレースホルダ情報 (INI ファイル形式)
+-->
+<job>
+<script language="JScript" src="auto-mode-alist.js"></script>
+<script language="JScript" src="inifile.js"></script>
+<script language="JScript" src="gin.js"></script>
+<script language="JScript" src="json2.js"></script>
+<script language="JScript"><![CDATA[
+
+var debug = false;
+var fso  = WScript.CreateObject("Scripting.FileSystemObject");
+WScript.Quit(main(WScript.Arguments));
+
+function main(args) {
+	var mode_ini = ""; // モード設定ファイル
+	var cachedir = ""; // キャッシュフォルダ
+	var path     = ""; // 引数で指定されたパス
+	var ext      = ""; // 拡張子 (ピリオドを含む)
+	var kwd      = ""; // キーワード
+	var seltext  = ""; // 選択文字列
+	
+	if (args.length > 0) mode_ini = args(0);
+	if (args.length > 1) cachedir = args(1);
+	if (args.length > 2) path = args(2);
+	if (args.length > 3) ext = args(3);
+	if (args.length > 4) kwd = args(4);
+	while (!WScript.StdIn.AtEndOfStream) {
+		seltext += WScript.StdIn.ReadAll();
+	}
+	if (fso.FolderExists(path) && ext != "") {
+		var snproot = fso.GetAbsolutePathName(path);
+	} else if (fso.FileExists(path)) {
+		var snpfile = fso.GetAbsolutePathName(path);
+	} else {
+		WScript.StdErr.WriteLine("Usage:\n" + 
+		"  " + WScript.ScriptName + " mode_ini cache_dir snippet_root .ext keyword\n" + 
+		"  " + WScript.ScriptName + " mode_ini cache_dir snippet_file");
+		return 9;
+	}
+	if (!fso.FolderExists(cachedir)) {
+		fso.CreateFolder(cachedir);
+	}
+	if (!snpfile) {
+		var mode = get_mode(mode_ini, ext);
+		if (debug) pp(mode);
+		if (!mode) {
+			return 4;
+		}
+		var snpdir = find_folder(snproot, mode)[0];
+		if (debug) pp(snpdir);
+		if (!snpdir) {
+			return 3;
+		}
+		var dics = [
+			fso.BuildPath(cachedir, mode + ".ini"),
+			fso.BuildPath(cachedir, mode + ".keys"),
+			fso.BuildPath(cachedir, mode + ".names")
+		];
+		if (debug) pp(dics);
+		validate_cache(snproot, snpdir, dics);
+		snpfile = IniFile.get(dics[0], "Snippets", kwd.replace(/=/, "〓"));
+		if (debug) pp(snpfile);
+	}
+	if (!snpfile) {
+		return 2;
+	}
+	if (snpfile.indexOf(";") >= 0) {
+		return 1;
+	}
+	if (!fso.FileExists(snpfile)) {
+		WScript.StdOut.Write("Snippet file '" + snpfile + "' is not found.");
+		return 9;
+	}
+	var res = expand_snippet(snpfile, seltext);
+	WScript.StdOut.Write(res.snippet);
+	WScript.StdErr.Write(res.placeholders);
+	return 0;
+}
+
+// 拡張子からモードを取得
+function get_mode(mode_ini, ext) {
+	var mode = "";
+	mode = IniFile.get(mode_ini, "Mode", ext);
+	if (mode != "") return mode;
+	mode = get_match(auto_mode_alist, ext.replace(/\\/, "/"), "i");
+	IniFile.put(mode_ini, "Mode", ext, mode);
+	return mode;
+}
+
+// ハッシュのキー (正規表現) にマッチした値を取得
+function get_match(map, name, option) {
+	for (key in map) {
+		var regex = new RegExp(key, option);
+		if (regex.test(name)) {
+			return map[key];
+		}
+	}
+	return null;
+}
+
+// フォルダを再帰的に検索
+function find_folder(root, name) {
+	if (!fso.FolderExists(root)) return null;
+	return find_folder_r(fso.GetFolder(root), name);
+}
+function find_folder_r(f, name) {
+	var a = [];
+	if (f.Name.toLowerCase() == name.toLowerCase()) {
+		a.push(f.Path);
+	}
+	for (var e = new Enumerator(f.SubFolders); !e.atEnd(); e.moveNext()) {
+		a = a.concat(find_folder_r(e.item(), name));
+	}
+	return a;
+}
+
+// キャッシュの有効性を担保
+function validate_cache(snproot, snpdir, caches) {
+	if (!check_cache(snproot, snpdir, caches)) {
+		update_cache(snproot, snpdir, caches);
+	}
+	return;
+}
+
+// キャッシュの有効性を確認
+function check_cache(root, leaf, caches) {
+	var cdate = new Date(); // キャッシュファイルの最旧更新時刻
+	for (i in caches) {
+		if (!fso.FileExists(caches[i])) return false;
+		var u = new Date(fso.GetFile(caches[i]).DateLastModified);
+		if (cdate > u) {
+			cdate = u;
+		}
+	}
+	for (var d = fso.GetFolder(leaf); d.Path != root && !d.IsRootFolder; d = d.ParentFolder) {
+		if (cdate < new Date(d.DateLastModified)) return false;
+		for (var e = new Enumerator(d.Files); !e.atEnd(); e.moveNext()) {
+			if (cdate < new Date(e.item().DateLastModified)) return false;
+		}
+	}
+	return true;
+}
+
+// キャッシュを更新
+function update_cache(root, leaf, caches) {
+	// caches = [ini, keys, names]
+	var paths = {};
+	var names = {};
+	var keychar = "";
+	for (var d = fso.GetFolder(leaf); d.Path != root && !d.IsRootFolder; d = d.ParentFolder) {
+		for (var e = new Enumerator(d.Files); !e.atEnd(); e.moveNext()) {
+			var f = e.item();
+			var head = header(f);
+			var key  = header_item(head, "key")  || f.Name;
+			var name = header_item(head, "name") || f.Name;
+			if (!paths[key]) paths[key] = [];
+			paths[key].push(f.Path);
+			if (!names[key]) names[key] = [];
+			names[key].push(name);
+			keychar += key;
+		}
+	}
+	var f0 = fso.CreateTextFile(caches[0], true); // ini
+	var f1 = fso.CreateTextFile(caches[1], true); // keys
+	var f2 = fso.CreateTextFile(caches[2], true); // names
+	f0.WriteLine("[Snippets]");
+	for (key in names) {
+		f0.WriteLine(key.replace(/=/, "〓") + "=\"" + paths[key].join(";") + "\"");
+		f1.WriteLine(key);
+		f2.WriteLine(names[key].join("\\n"));
+	}
+	f0.WriteLine("[Names]");
+	for (key in names) {
+		for (var i = 0; i < names[key].length; i++) {
+			f0.WriteLine(paths[key][i].replace(/=/, "〓") + "=\"" + names[key][i] + "\"");
+		}
+	}
+	f0.WriteLine("[Listbox]");
+	f0.WriteLine("keysym=\"" + keychar.replace(/\w+/g, "") + "\"");
+	f0.Close();
+	f1.Close();
+	f2.Close();
+	return paths;
+}
+
+// スニペットのヘッダ全体を文字列として取得
+function header(f) {
+	var ts = f.OpenAsTextStream(1); // read
+	var content = ts.ReadAll();
+	ts.Close();
+	var m = content.replace(/\r?\n/, "\n").match(/^(.|\n)*?^# --\n/m);
+	return m ? m[0] : "";
+}
+
+// スニペットのヘッダ項目の値を取得
+function header_item(head, name_regex) {
+	var m = head.match(new RegExp("^# *" + name_regex + " *: *(.+)$", "m"));
+	return m ? m[1] : "";
+}
+
+// スニペットを展開
+function expand_snippet(snpfile, seltext) {
+	// スニペット定義をスニペットファイルから読み込む
+	var f = fso.OpenTextFile(snpfile);
+	var src = f.ReadAll().replace(/\r\n?/, "\n").replace(/^(.|\n)*?^# --\n/m, "");
+	f.Close();
+	
+	// 出力バッファを初期化
+	var snp = ""; // 展開後のスニペット文字列
+	var phs = ""; // プレースホルダ情報 (INI ファイル形式)
+	var ph1 = {}; // 番号つきプレースホルダ情報 (タブストップを含む)
+	var ph2 = {}; // 番号なしプレースホルダ情報
+	var num = 0; // 解析中のホルダ番号
+	var lin = 0; // 解析中の行オフセット
+	var col = 0; // 解析中の桁オフセット
+	
+	// 文法定義
+	var yas = new Gin.Grammar({
+		Snippet: / ( <([^`$\\]|\\.)+>:aText  | Embed | Field1 | <.>:aText )* /,
+		Value:   / ( <([^`$}\\]|\\.)+>:aText | Embed | Field2 )* /,
+		Field1:  / '$':aField ( <\d>:aTab | Ph1:aPh1 | Ph2:aPh2 ) /,
+		Field2:  / '$':aField ( <\d>:aTab | Ph1:aPh1 | Ph2:aPh2 | Trans:aTrans ) /,
+		Ph1:     / '{' <\d> ':' Value '}' /,
+		Ph2:     / '{' Value '}' /,
+		Embed:   / '`' <([^`\\]|\\.)+>:aEmbed '`' /,
+		Trans:   / '$' Lisp /,
+		Lisp:    / '(' ( <([^()\\]|\\.)+> | Lisp )* ')' /
+	}, "Snippet", Gin.NOTHING);
+	
+	// アクション
+	var yasAction = {
+		stack: [],
+		// 地の文: オフセットを更新する
+		aText: function(v) {
+			if (debug) WScript.Echo("text   " + JSON.stringify(v));
+			var s = v.toString().replace(/\\(.)/, "$1");
+			if (m = s.match(/\n/gm)) {
+				lin += m.length;
+				col = s.length - m.lastIndex;
+			} else {
+				col += s.length;
+			}
+			snp += s;
+			if (debug) snp += "【" + lin + "," + col + "】";
+		},
+		// 埋め込みコード: 評価する
+		aEmbed: function(v) {
+			if (debug) WScript.Echo("embed  " + JSON.stringify(v));
+			var s = v.toString().replace(/\\(.)/, "$1");
+			switch (s) {
+			case "yas/selected-text":
+				s = seltext;
+			default:
+				s = "";
+			}
+			if (m = s.match(/\n/gm)) {
+				lin += m.length;
+				col = s.length - m.lastIndex;
+			} else {
+				col += s.length;
+			}
+			snp += s;
+			if (debug) snp += "【" + lin + "," + col + "】";
+		},
+		// フィールドの始点: 現在のオフセットをスタックに積む
+		aField: function(v) {
+			if (debug) WScript.Echo("field  " + JSON.stringify(v) + "\n       stack=" + JSON.stringify(this.stack));
+			this.stack.push({lin: lin, col: col});
+		},
+		// フィールドの終点: スタック上のオフセットと現在のオフセットで座標を構成する
+		// ・タブストップの場合
+		aTab: function(v) {
+			if (debug) WScript.Echo("tab    " + JSON.stringify(v) + "\n       stack=" + JSON.stringify(this.stack));
+			var a = this.stack.pop();
+			var n = v.toString();
+			if (!ph1[n]) ph1[n] = [];
+			ph1[n].push(a.lin + "," + a.col + "," + lin + "," + col);
+		},
+		// ・番号つきプレースホルダの場合
+		aPh1: function(v) {
+			if (debug) WScript.Echo("ph1    " + JSON.stringify(v) + "\n       stack=" + JSON.stringify(this.stack));
+			var a = this.stack.pop();
+			var n = v[1].toString();
+			if (!ph1[n]) ph1[n] = [];
+			ph1[n].push(a.lin + "," + a.col + "," + lin + "," + col);
+		},
+		// ・番号なしプレースホルダの場合
+		aPh2: function(v) {
+			if (debug) WScript.Echo("ph2    " + JSON.stringify(v) + "\n       stack=" + JSON.stringify(this.stack));
+			var a = this.stack.pop();
+			for (var n = 0; ph2[n]; n++) ;
+			ph2[n] = [];
+			ph2[n][0] = (a.lin + "," + a.col + "," + lin + "," + col);
+		},
+		// ・トランスフォーメーションの場合
+		aTrans: function(v) {
+			if (debug) WScript.Echo("trans  " + JSON.stringify(v) + "\n       stack=" + JSON.stringify(this.stack));
+			var a = this.stack.pop();
+		}
+	};
+	
+	// 解析
+	var match = yas.parse(src, yasAction);
+	if (!(match && match.full)) {
+		WScript.Echo(snpfile + ": 文法エラー");
+		return 1;
+	}
+	if (debug) WScript.Echo("OK!  " + JSON.stringify(match.value) + "\n" + JSON.stringify(ph1));
+	
+	// プレースホルダ情報を INI ファイル形式で標準エラー出力へ書き出す
+	var i = 0;
+	// ・番号つきプレースホルダ・タブストップ
+	var keys = sort_keys(ph1);
+	for (var j = 0; j < keys.length; j++) {
+		var n = keys[j];
+		phs += "[" + i + "]\n";
+		for (m in ph1[n]) {
+			phs += m + "=" + ph1[n][m] + "\n";
+		}
+		i++;
+	}
+	// ・番号なしプレースホルダ
+	for (var n = 0; ph2[n]; n++) {
+		phs += "[" + i + "]\n";
+		phs += "0=" + ph2[n][0] + "\n";
+		i++;
+	}
+	return {snippet: snp, placeholders: phs};
+}
+
+// ハッシュのキーをソートして配列として取得
+function sort_keys(hash) {
+	var keys = [];
+	for (k in hash) keys.push(k);
+	return keys.sort();
+}
+
+// デバッグ用
+function pp(obj) {
+	WScript.Echo(JSON.stringify(obj));
+}
+
+]]></script>
+</job>

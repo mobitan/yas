@@ -1,0 +1,419 @@
+// 
+//  	YASnippet Hidemarized
+//  	リストボックス (2010/12/12)
+//  	by mobitan  http://mobitan.org/
+// 
+
+$PrmFile = getarg(0);
+$CfgFile = getinistr($PrmFile, "Parameter", "cfgfile");
+// #debug = 1;
+
+//------ キー割り当て ----------------------------------------------------------
+// #F[キー] = 機能コード;
+#F[0x020] =   0;	// [Space]          	┌── 機能コード ──┐
+#F[0x00D] =   1;	// [Enter]          	│  0: 文字として入力 │
+#F[0x008] =  37;	// [Backspace]      	│ -1: キャンセル1    │
+#F[0x01B] =  -1;	// [Esc]            	│ -2: キャンセル2    │
+#F[0x009] =  32;	// [Tab]            	│ -3: キャンセル3    │
+#F[0x01D] =  33;	// [↑]             	│ -4: キャンセル4    │
+#F[0x01F] =  34;	// [↓]             	│  1: 確定1          │
+#F[0x01C] =  35;	// [←]             	│  2: 確定2          │
+#F[0x01E] =  36;	// [→]             	│  3: 確定3          │
+// #F[0x120] = ;	// Shift+[Space]    	│  4: 確定4          │
+#F[0x10D] =   2;	// Shift+[Enter]    	│ 32: 補完           │
+// #F[0x108] = ;	// Shift+[Backspace]	│ 33: 前候補         │
+// #F[0x11B] = ;	// Shift+[Esc]      	│ 34: 次候補         │
+// #F[0x109] = ;	// Shift+[Tab]      	│ 35: 前ページ       │
+// #F[0x11D] = ;	// Shift+[↑]       	│ 36: 次ページ       │
+// #F[0x11F] = ;	// Shift+[↓]       	│ 37: 1文字消去      │
+#F[0x11C] =  37;	// Shift+[←]       	│ 38: 1文字確定      │
+#F[0x11E] =  38;	// Shift+[→]       	│ 64: 貼り付け       │
+// #F[0x220] = ;	// Ctrl+[Space]     	│ 99: 何もしない     │
+#F[0x20A] =   3;	// Ctrl+[Enter]     	└──────────┘
+// #F[0x27F] = ;	// Ctrl+[Backspace] 	
+#F[0x21D] =  35;	// Ctrl+[↑]        	
+#F[0x21F] =  36;	// Ctrl+[↓]        	
+// #F[0x21C] = ;	// Ctrl+[←]        	
+// #F[0x21E] = ;	// Ctrl+[→]        	
+// #F[0x31D] = ;	// Shift+Ctrl+[↑]  	
+// #F[0x31F] = ;	// Shift+Ctrl+[↓]  	
+// #F[0x31C] = ;	// Shift+Ctrl+[←]  	
+// #F[0x31E] = ;	// Shift+Ctrl+[→]  	
+// #F[0x1C0 + 'A'] = ;	// Ctrl+[ A ]
+//             :      	//        :  
+// #F[0x1C0 + 'V'] = ;	// Ctrl+[ V ]
+//             :      	//        :  
+// #F[0x1C0 + 'Z'] = ;	// Ctrl+[ Z ]
+// #F[0x2C0 + 'A'] = ;	// Shift+Ctrl+[ A ]
+//             :      	//              :  
+// #F[0x2C0 + 'Z'] = ;	// Shift+Ctrl+[ Z ]
+
+call Main;
+endmacro;
+
+Main:
+	if (readonly || browsemode) {
+		call Error;
+	}
+	call LoadDLL;
+	call GetType;
+	call Initialize;
+	call Listbox;
+	call Finalize;
+	return;
+
+Initialize:
+// 	if (version < 708) {		// 秀丸メール v5.21 だと version == 708
+// 		call Error "CompleteX v3.1 を使うには秀丸エディタ v7.08 以降が必要です";
+// 	}
+	if (imestate) {
+		imeswitch;
+		#basestat = #basestat | 0x02;
+	}
+	call LoadDLL;
+	call GetType;
+	// オプション設定取得
+	call GetCfg "source";    $Source    =  $$return;
+	call GetCfg "appear";    $Appear    =  $$return;
+	call GetCfg "select";    $Select    =  $$return;
+	call GetCfg "filter";    #Filter    = ($$return != "no");
+	call GetCfg "overwrite"; #Overwrite = ($$return == "yes");
+	call GetCfg "casesense"; #CaseSense = ($$return == "yes");
+	call GetCfg "zenkaku";   #Zenkaku   = ($$return == "yes");
+	call GetCfg "unsorted";  #Unsorted  = ($$return == "yes");  #Overlap = ($$return == "overlap");
+	call GetCfg "autofix";   #AutoFix   = val("0x" + $$return);
+	call GetCfg "width";     #Width     = val($$return);  if (!#Width) #Width = 200;
+	call GetCfg "rows";      #Rows      = val($$return);  if (!#Rows)  #Rows  = 8;
+	call GetCfg "wordhas";   $NameChar  = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" + $$return;
+	if ($Source == "list") {
+		call GetCfg "list";   $Dic  = $$return;
+		call GetCfg "hints";  $Hint = $$return;
+		if ($Hint == "") {
+			call GetCfg "comment";  $Hint = $$return;
+		}
+	} else {
+		call GetCfgAsPath "dic";   $Dic  = $$return;
+		call GetCfgAsPath "hint";  $Hint = $$return;
+	}
+	if ($Hint == "") {
+		call GetCfg "guide";  $Hint = $$return;  #Guide = true;
+	}
+	// 対象文字列取得
+	if (selecting) {
+		#orgc = seltopcolumn;  #orgl = seltoplineno;
+		$instr = getinistr($PrmFile, "Parameter", "instr");
+	} else {
+		##cc = column;  ##cl = lineno;
+		left;
+		while (result && strstr($NameChar, char(code)) >= 0) left;
+		if (result) right;
+		#orgc = column;  #orgl = lineno;
+		$instr = gettext2(#orgc, #orgl, ##cc, ##cl);
+		beginsel;
+		movetolineno ##cc + 1, ##cl;
+		if (#Overwrite) {
+			while (strstr($NameChar, char(code)) >= 0) right;
+		}
+	}
+	$basestr = gettext2(seltopcolumn, seltoplineno, selendcolumn, selendlineno, 1);
+	delete;		// この時点で所要アンドゥ1回
+	writeinistr $PrmFile, "Parameter", 0, 0;
+	writeinistr $PrmFile, "Return",    0, 0;
+	if (#debug) {
+		call Confirm "Initialize:\n"
+		 + "macrodll.dll version " + dllfuncstr("GETVERSIONSTR") + " (" + dllfuncstr("GETCOMPILEDATE") + ")\n"
+		 + "hmjre.dll version " + str(dllfunc("GETHMJREVERSION")) + "\n"
+		 + "$CfgFile\t= " + $CfgFile + "\n"
+		 + "#basestat\t= " + str(#basestat) + "\n"
+		 + "$Source\t= " + $Source + "\n"
+		 + "$Dic\t= " + $Dic + "\n"
+		 + "$Hint\t= " + $Hint + "\n"
+		 + "#Guide\t= " + str(#Guide) + "\n"
+		 + "$instr\t= " + $instr;
+	}
+	return;
+
+Finalize:
+	if (#debug) {
+		call Confirm "Finalize:\n"
+		 + "$instr\t= " + $instr + "\n"
+		 + "#result\t= " + str(#result) + "\n"
+		 + "#undocount\t= " + str(#undocount);
+	}
+	call Undo;
+	if ($instr == "") {
+		beginsel;  endsel;		// アンドゥ回数をそろえる
+	}
+	insert $instr;		// この時点で所要アンドゥ2回
+	writeinistr $PrmFile, "Return", "basestr", "\"" + $basestr + "\"";
+	writeinistr $PrmFile, "Return", "instr",   "\"" + $instr + "\"";
+	writeininum $PrmFile, "Return", "result",  #result;
+	if (#basestat & 0x02) imeswitch;
+	return;
+
+Listbox:
+	call _BeginListbox;
+	while (##return) {
+		##c = inputchar(gettitle(0));
+		#result = ##c | (iskeydown(0x11) * 0x200 + iskeydown(0x10) * 0x100);
+		if      (#F[#result] ==  0 && (##c == 9 || ##c == 13 || ##c >= 32)) call _Add char(##c);
+		else if (#F[#result] >=  1 && #F[#result] <=  31) call _Fix    #F[#result];
+		else if (#F[#result] <= -1 && #F[#result] >= -31) call _Cancel #F[#result];
+		else if (#F[#result] == 32) call _Complete;
+		else if (#F[#result] == 33) call _Move -1;
+		else if (#F[#result] == 34) call _Move +1;
+		else if (#F[#result] == 35) call _Move -#Rows;
+		else if (#F[#result] == 36) call _Move +#Rows;
+		else if (#F[#result] == 37) call _Cursor -1;
+		else if (#F[#result] == 38) call _Cursor +1;
+		else if (#F[#result] == 64) call _Paste;
+	}
+	call _EndListbox;
+	return;
+
+_BeginListbox:
+	##posx = dllfunc("WINDOW_GETCARETPOSX", hidemaruhandle(0), "HM32CLIENT");
+	##posy = dllfunc("WINDOW_GETCARETPOSY", hidemaruhandle(0), "HM32CLIENT") + fontsize;
+	if (##posx + #Width > cxworkarea) ##posx = cxworkarea - #Width;
+	##_ = dllfunc("LISTBOX_SETSIZE", #Rows, #Width);
+	##_ = dllfunc("LISTBOX_SETFONT", fontname, fontsize);
+	##_ = dllfunc("LISTBOX_SETSHOW", false);
+	##_ = dllfunc("LISTBOX_SET", "Show_only_match", #Filter);
+	##_ = dllfunc("LISTBOX_SET", "CaseSense", #CaseSense);
+	##_ = dllfunc("LISTBOX_SET", "Sort", #Unsorted);
+	##_ = dllfunc("LISTBOX_SET", "Uniq", #Overlap);
+	##_ = dllfunc("LISTBOX_SET", "Width", !#Zenkaku);
+	##_ = dllfunc("LISTBOX_SET", "comment_fix", #Guide);
+	if (!dllfunc("LISTBOX_CREATE", hidemaruhandle(0), ##posx, ##posy, $Dic, $Hint)) {
+		call Error "リストボックスの生成に失敗しました\n"
+		 + "CompleteX を再インストールしてみてください";
+	}
+	if (##posy + dllfunc("LISTBOX_GETWINDOWHEIGHT") > cyworkarea) {
+		##_ = dllfunc("LISTBOX_SETPOS", ##posx, dllfunc("WINDOW_GETCARETPOSY", hidemaruhandle(0), "HM32CLIENT") - dllfunc("LISTBOX_GETWINDOWHEIGHT"));
+	}
+	if (#AutoFix & 0x100) $instr = dllfuncstr("LISTBOX_GETCOMMONSTR", $instr);
+	call _Find;
+	if (!##return) return false;
+	if ($instr == "") call _Select $Select;
+	if ($Appear != "inline") {
+		##_ = dllfunc("LISTBOX_SETSHOW", true);
+		##_ = dllfunc("LISTBOX_REDRAW");
+	}
+	if (#debug) {
+		call Confirm "_BeginListbox:\n"
+		 + "$instr\t= " + $instr;
+	}
+	return true;
+
+_EndListbox:
+	##_ = dllfunc("LISTBOX_DESTROY");
+	return;
+
+_Add:		// 文字入力
+	$$prevstr = dllfuncstr("LISTBOX_GETSELTEXT");
+	if ($$prevstr == "") $$prevstr = $instr;
+	$instr = $instr + $$1;
+	if (#AutoFix & 0x010) $instr = dllfuncstr("LISTBOX_GETCOMMONSTR", $instr);
+	call _Find;
+	if (##return == -2) {
+		#result = #result & 0x7F;
+		$instr = $$prevstr;
+		return false;
+	}
+	return ##return;
+
+_Fix:		// 確定
+	#result = ##1;
+	if (dllfunc("LISTBOX_GETSEL") >= 0) $instr = dllfuncstr("LISTBOX_GETSELTEXT");
+	return false;
+
+_Cancel:		// キャンセル
+	#result = ##1;
+	if ($Appear != "listbox") $instr = $basestr;
+	return false;
+
+_Complete:		// 補完
+	$instr = dllfuncstr("LISTBOX_GETCOMMONSTR", $instr);
+	call _Find;
+	return ##return;
+
+_Cursor:		// カーソル移動
+	if (##1 < 0) {		// n文字消去
+		if ($instr == "") {
+			#result = -1;
+			return false;
+		}
+		$instr = leftstr($instr, strlen($instr) + ##1);
+	} else if (##1 > 0) {		// n文字確定
+		$instr = $instr + midstr(dllfuncstr("LISTBOX_GETSELTEXT"), strlen($instr), ##1);
+	}
+	call _Find;
+	return ##return;
+
+_Find:		// 先頭候補
+	##n = dllfunc("LISTBOX_SELECTFROMTEXT", $instr);
+	$$s = dllfuncstr("LISTBOX_GETTEXT", ##n);
+	if (dllfunc("STRISTR", $$s, $instr) == 0) {		// 先頭一致
+		##_ = dllfunc("LISTBOX_SETSEL", ##n, true);
+		if (dllfunc("STRISTR", dllfuncstr("LISTBOX_GETTEXT", ##n + 1), $instr) != 0) {		// 唯一
+			if (#AutoFix & 0x001 || dllfuncstr("TOLOWER", $$s) == dllfuncstr("TOLOWER", $instr)) {		// 完全一致 or AutoFix
+				$instr = $$s;
+				#result = 0;
+				return false;
+			}
+		}
+		call _Write $$s;
+		return 1;
+	} else {		// 不一致
+		##_ = dllfunc("LISTBOX_SETSEL", ##n, false);
+		if ($NameChar != "" && $instr != "" && strstr($NameChar, rightstr($instr, 1)) < 0) {		// 記号だったら自動確定
+			return -2;
+		}
+		call _Write $instr;
+		return -1;
+	}
+	// NOTREACHED
+
+_Move:		// 前候補／次候補
+	// ##1 = 移動方向 (-1:前  +1:次)
+	if (dllfunc("LISTBOX_GETSEL") < 0) ##_ = dllfunc("LISTBOX_UP", 0, true);		// 非選択状態
+	else if (!dllfunc("LISTBOX_UP", -##1, true)) {
+		if (dllfunc("LISTBOX_GETSEL") > 0) ##_ = dllfunc("LISTBOX_SETSEL", 0, true);		// 末尾→先頭
+		else ##_ = dllfunc("LISTBOX_SETSEL", dllfunc("LISTBOX_GETCOUNT") - 1, true);		// 先頭→末尾
+	}
+	$$s = dllfuncstr("LISTBOX_GETSELTEXT");
+	if (dllfunc("STRISTR", $$s, $instr) != 0 && $Appear != "listbox") $instr = "";
+	call _Write $$s;
+	return true;
+
+_Select:		// 選択
+	// $$1 = 選択する候補（文字列）
+	##n = dllfunc("LISTBOX_GETCOUNT");
+	while (dllfuncstr("LISTBOX_GETTEXT", ##n) != $$1 && ##n >= 0) ##n = ##n - 1;
+	if (##n >= 0) ##_ = dllfunc("LISTBOX_SETSEL", ##n, true);
+	$$s = dllfuncstr("LISTBOX_GETSELTEXT");
+	if (dllfunc("STRISTR", $$s, $instr) != 0 && $Appear != "listbox") $instr = "";
+	call _Write $$s;
+	return true;
+
+_Paste:		// 貼り付け
+	#result = -1;
+	beginclipboardread;
+	$instr = getclipboard;
+	if (rightstr($instr, 1) == "\n") $instr = leftstr($instr, strlen($instr) - 1);
+	call _Write $instr;
+	return -1;
+
+_Write:		// 書き換え
+	call Undo;
+	if ($Appear != "listbox") {
+		insertfix $$1;
+		#undocount = #undocount + ($$1 != "");
+		movetolineno #orgc + strlen($instr) + 1, #orgl;
+		beginsel;
+		movetolineno #orgc + strlen($$1) + 1, #orgl;
+		endsel;
+	} else {
+		insert $instr;
+		#undocount = #undocount + ($instr != "");
+	}
+	return;
+
+//------ 共通サブルーチン ------------------------------------------------------
+
+Undo:		// アンドゥ
+	escape;		// これ重要
+	while (#undocount > 0) {
+		undo;
+		#undocount = #undocount - 1;
+	}
+	return;
+
+GetType:		// ファイルタイプを取得
+	if (getinistr($CfgFile, "plugin", "type") == "plugin") {
+		$Type = "plugin";
+	} else if (leftstr(dllfuncstr("WINDOW_GETCLASSNAME", hidemaruhandle(0)), 8) == "TuruKame") {
+		$Type = "turukame";
+	} else {
+		$Type = filetype;
+	}
+	return;
+
+GetCfg:		// 設定を取得
+	// $$1 = キー名
+	$$v = getinistr($PrmFile, "Parameter", $$1);		// パラメータファイル優先
+	if ($$v == "") {
+		call GetCfgOfType $$1;
+		$$v = $$return;
+	}
+	return $$v;
+
+GetCfgAsPath:		// 設定をファイル名として取得
+	// $$1 = キー名
+	$$g = $PrmFile;
+	$$v = getinistr($PrmFile, "Parameter", $$1);		// パラメータファイル優先
+	if ($$v == "") {
+		$$g = $CfgFile;
+		call GetCfgOfType $$1;
+		$$v = $$return;
+	}
+	if ($$v == "") return "";
+	if (midstr($$v, 1, 2) != ":\\" && leftstr($$v, 2) != "\\\\") {
+		$$v = leftstr($$g, dllfunc("STRRSTR", $$g, "\\") + 1) + $$v;		// INI ファイルからの相対パス
+	}
+	if (!existfile($$v)) {
+		call Error "指定されたファイルがありません\n"
+		 + $$v + "\n\n"
+		 + "設定ファイル: " + $$g;
+	}
+	return $$v;
+
+GetCfgOfType:		// ファイルタイプ別の設定を取得
+	// $CfgFile = INI ファイル名
+	// $Type = セクション名
+	// $$1 = キー名
+	$$t = $Type;
+	while ($$t != "") {
+		$$v = getinistr($CfgFile, $$t, $$1);
+		if ($$v != "") break;
+		$$t = getinistr($CfgFile, $$t, "@");
+	}
+	if ($$v == "") $$v = getinistr($CfgFile, "default", $$1);
+	return $$v;
+
+LoadDLL:		// DLL ロード
+	if (rightstr(loaddllfile, 13) != "\\macrodll.dll") {
+		loaddll currentmacrodirectory + "\\macrodll.dll";
+		if (!result) {
+			call Error "macrodll.dll がロードできません\n"
+			 + "CompleteX を再インストールしてみてください\n\n"
+			 + currentmacrodirectory + "\\macrodll.dll";
+		}
+		if (!dllfunc("SETHMJREDLL", hidemarudir + "\\HmJre." + "dll")) {
+			call Error "HmJre." + "dll が見つかりません\n"
+			 + "秀丸エディタを再インストールしてみてください\n"
+			 + hidemarudir + "\\HmJre." + "dll";
+		}
+	}
+	if (dllfunc("GETVERSIONINT") < 8000) {
+		call Error "macrodll.dll が古いです\n"
+		 + "CompleteX を再インストールしてみてください\n"
+		 + "現在のバージョン: " + dllfuncstr("GETVERSIONSTR") + "\n"
+		 + "必要なバージョン: 0.80.00";
+	}
+	return;
+
+FreeDLL:		// DLL 解放
+	freedll;
+	return;
+
+Error:		// エラー処理
+	if ($$1 != "") message currentmacrobasename + ":  " + $$1;
+	endmacro;
+
+Confirm:		// デバッグ用
+	question currentmacrobasename + ":  " + $$1;
+	if (!result) { freedll;  endmacro; }
+	return;
+
+//  		(C) mobitan 2010

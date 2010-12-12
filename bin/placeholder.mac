@@ -1,0 +1,701 @@
+// 
+//  	YASnippet Hidemarized
+//  	プレースホルダ編集 (2010/12/12)
+//  	by mobitan  http://mobitan.org/
+// 
+
+// $0 に入力したら終了? (yes/no)
+#ExitOnPH0 = yes;
+
+// 着色方法 (0:なし, 1:手抜き, 2:念入り)
+#Coloring = 1;
+
+// 文字色
+#FontColor = 0x000000;
+
+// 背景色
+// ↑明
+// $ColorPalette = "EAEAEA FDE5CC F2CDD1 C4E1F2 D9EAD5 DFD7E7 F2EADD F5DEDD DBE8ED DDECD0 EEDDEF F0ECD8 ";
+$ColorPalette = "CBCBCB FBCB9A E59CA4 89C3E5 B3D5AB BFAFCF E6D5BC EBBDBB B8D1DB BCDAA2 DDBBDF E2D9B1 ";
+// $ColorPalette = "989898 F9B268 D86B77 4EA5D8 8DC182 9F87B7 D9C19B E19D99 95BAC9 9BC874 CC9ACF D4C68B ";
+// $ColorPalette = "464646 B45F06 9F2936 1B587C 4E8542 604878 997339 CD5C56 538BA2 5B8835 AB57AF B49F42 ";
+// ↓暗
+
+// #debug = 2;
+call Initialize;
+call Prepare getarg(0);
+call Main;
+call Finalize;
+endmacro "OK";
+
+Prepare: // INI ファイルで初期化
+	#ol = lineno;  #oc = column;
+	call ToCoord #ol, #oc;  $origin = $$return; // 最初のカーソル位置
+	$bottom = ""; // 一番下のプレースホルダの末尾
+	$list_empty = ""; // プレースホルダの数だけ "*" を並べる
+	##i = 0;
+	##n = 0;
+	while (true) {
+		$$u = getinistr($$1, str(##i), "0");
+		if ($$u == "") break;
+		##j = 0;
+		##m = 0;
+		##p = -3;
+		while (true) {
+			$$u = getinistr($$1, str(##i), str(##j));
+			if ($$u == "") break;
+			##p = dllfunc("FindRegular", "(\\d+)\\D+(\\d+)\\D+(\\d+)\\D+(\\d+)", $$u, 0);
+			if (##p >= 0) {
+				##bl = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 1), dllfunc("GetLastMatchTagLength", 1)));
+				##bc = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 2), dllfunc("GetLastMatchTagLength", 2)));
+				##dl = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 3), dllfunc("GetLastMatchTagLength", 3)));
+				##dc = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 4), dllfunc("GetLastMatchTagLength", 4)));
+				call ToAbsRegion ##bl, ##bc, ##dl, ##dc, #ol, #oc;
+				$h[##n][##m] = $$return;
+				call EndCoord $h[##n][##m];
+				if ($bottom < $$return) {
+					$bottom = $$return;
+				}
+				##m = ##m + 1;
+			}
+			##j = ##j + 1;
+		}
+		if (##p >= 0) {
+			if (##n > 0) {
+				#next[##n - 1] = ##n;
+			}
+			$list_empty = $list_empty + "*";
+			##n = ##n + 1;
+		}
+		##i = ##i + 1;
+	}
+	if (#debug >= 1) {
+		call PrintPHs;
+		call Confirm "\n" + $$return;;
+	}
+	if (##n <= 0) call Error;
+	return;
+
+Prepare2: // 引数で初期化
+/*
+	insertfix "A123456789\nB123456789\nC123456789\nD123456789\nE123456789";
+	$$1 = 
+	"2,10,2,10\n" + // C10
+	"0,8,2,1\n" + // A8-C1
+	"1,1,1,10;3,1,3,10\n" + // B1-B9, D1-D9
+	"1,4,1,7\n" +   // B4-B6
+	"4,0,4,2;4,4,4,6;4,8,4,10\n"; // E0-E1, E4-E5, E8-E9
+*/
+	#ol = lineno;  #oc = column;
+	call ToCoord #ol, #oc;  $origin = $$return; // 最初のカーソル位置
+	$bottom = ""; // 一番下のプレースホルダの末尾
+	$list_empty = ""; // プレースホルダの数だけ "*" を並べる
+	$$s = $$1 + "\n";
+	##n = 0;
+	while (true) {
+		##p = strstr($$s, "\n");
+		if (##p < 0) break;
+		$$t = leftstr($$s, ##p) + ";";
+		##m = 0;
+		##r = -3;
+		while (true) {
+			##q = strstr($$t, ";");
+			if (##q < 0) break;
+			$$u = leftstr($$t, ##q);
+			##r = dllfunc("FindRegular", "(\\d+)\\D+(\\d+)\\D+(\\d+)\\D+(\\d+)", $$u, 0);
+			if (##r >= 0) {
+				##bl = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 1), dllfunc("GetLastMatchTagLength", 1)));
+				##bc = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 2), dllfunc("GetLastMatchTagLength", 2)));
+				##dl = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 3), dllfunc("GetLastMatchTagLength", 3)));
+				##dc = val(midstr($$u, dllfunc("GetLastMatchTagPosition", 4), dllfunc("GetLastMatchTagLength", 4)));
+				call ToAbsRegion ##bl, ##bc, ##dl, ##dc, #ol, #oc;
+				$h[##n][##m] = $$return;
+				call EndCoord $h[##n][##m];
+				if ($bottom < $$return) {
+					$bottom = $$return;
+				}
+				##m = ##m + 1;
+			}
+			$$t = midstr($$t, ##q + 1);
+		}
+		if (##r >= 0) {
+			if (##n > 0) {
+				#next[##n - 1] = ##n;
+			}
+			$list_empty = $list_empty + "*";
+			##n = ##n + 1;
+		}
+		$$s = midstr($$s, ##p + 1);
+	}
+	if (#debug >= 1) {
+		call PrintPHs;
+		call Confirm "\n" + $$return;;
+	}
+	if (##i <= 0) call Error;
+	return;
+
+Main:
+	call _BeginMain;
+	while (##return) {
+		enabledraw;
+		#in = inputchar(gettitle(0));
+		disabledraw;
+		if      (#in >= ' ') call _Replace;
+		else if (#in ==  8)  call _Back;
+		else if (#in ==  9)  call _Focus;
+		else if (#in == 13)  call _Replace;
+		else if (#in == 27)  call _Escape;
+		else if (#in == 28)  call _Cursor;
+		else if (#in == 29)  call _Cursor;
+		else if (#in == 30)  call _Cursor;
+		else if (#in == 31)  call _Cursor;
+		else if (#in == 'X' - 64) call _Cut;
+		else if (#in == 'C' - 64) call _Copy;
+		else if (#in == 'V' - 64) call _Replace;
+		else break;
+		#in[-1] = #in;
+	}
+	call _EndMain;
+	return;
+
+_BeginMain:
+	if (#Coloring) {
+		call PaintPHs;
+	}
+	call Select $h[#next[0]][0];
+	title "[プレースホルダ編集中] " + gettitle(0);
+	return true;
+
+_EndMain:
+	if (#Coloring) {
+		call UnpaintPHs;
+	}
+	return true;
+
+_Back:
+	if (!selecting) {
+		beginsel;
+		call GoLeft;
+	}
+	call _Replace;
+	return ##return;
+
+_Focus:
+	if (#in == #in[-1]) {
+		##n0 = #_focus_n[-1];
+	} else {
+		call GetCurrentPH;  ##n0 = ##return;
+	}
+	if (##n0 == -1) {
+		if (iskeydown(0x10)) shifttab; else tab;
+		return false;
+	}
+	if (iskeydown(0x10)) {
+		call GetPrevPH ##n0;  ##n1 = ##return;
+		if (#debug >= 2) title "$" + str(##n1) + " ← $" + str(##n0), 1;
+	} else {
+		##n1 = #next[##n0];
+		if (#debug >= 2) title "$" + str(##n0) + " → $" + str(##n1), 1;
+	}
+	call Select $h[##n1][0];
+	endsel;
+	if (seltopx == selendx && seltopy == selendy) escape;
+	if (!#debug) title "$" + str(##n1), 1;
+	#_focus_n[-1] = ##n1;
+	return true;
+
+_Cursor:
+	if (iskeydown(0x10)) { // [Shift]
+		if (!selecting) beginsel;
+	} else {
+		if (selecting)  escape;
+	}
+	if      (#in == 28) left;  // [←]
+	else if (#in == 29) up;    // [↑]
+	else if (#in == 30) right; // [→]
+	else if (#in == 31) down;  // [↓]
+	call GetCurrentPH;  ##n = ##return;
+	if (#debug >= 2) {
+		call Coord;  $$cur = $$return;
+		call ListPHsCovering $$cur + $$cur;  $$list = $$return;
+		title "$" + str(##n) + " [" + $$list + "]", 1;
+	}
+	if (!#debug) {
+		if (##n >= 0) title "$" + str(##n), 1; else title 0, 1;
+	}
+	return true;
+
+_Escape:
+	if (selecting) {
+		escape;
+// 		return true;
+	}
+	return false;
+
+_Cut:
+	if (selecting) {
+		copy2;
+		if (#debug >= 2) title "Cut", 1;
+		call _Replace 0;
+		return ##return;
+	}
+	return true;
+
+_Copy:
+	if (selecting) {
+		call GetHidemaruEnv "CopyClear";
+		if (##return) copy; else copy2;
+		if (#debug >= 2) title "Copy", 1;
+	}
+	return true;
+
+_Replace:
+	if (!selecting) {
+		call _Insert;
+		return ##return;
+	}
+	if (#debug >= 2) title "Replace(0x" + hex(#in) + ")", 1;
+	call Region;  $$sel = $$return;
+	call EndCoord $$sel;  $$c = $$return;
+	call GetCurrentPH;  ##n = ##return;
+	call ListPHsExceeding $$sel;  $$exceeds = $$return;
+	
+	if      (#in >= ' ')  insert char(#in);
+	else if (#in == 0x08) backspace;
+	else if (#in == 0x0D) insertreturn;
+	else if (#in == 'V' - 64) paste;
+	
+	if (##n < 0 || (##n == 0 && #ExitOnPH0)) {
+		if (!#debug) return false;
+		question "Quit?";
+		if (result) return false;
+	}
+	call Coord;  $$e = $$return;
+	call AdjustAllPHs $$c, $$e;
+	call MirrorPHs;
+	call RemovePHs $$exceeds;
+	if (#Coloring && (##return || #in != 0)) { // 削除時は塗り直し不要
+		call UnpaintPHs;
+		call PaintPHs;
+	}
+	return true;
+
+_Insert:
+	if (#debug >= 2) title "Insert(0x" + hex(#in) + ")", 1;
+	call Coord;  $$c = $$return;
+	call GetCurrentPH;  ##n = ##return;
+	
+	if      (#in >= ' ')  insert char(#in);
+	else if (#in == 0x0D) insertreturn;
+	else if (#in == 'V' - 64) paste;
+	
+	if (##n < 0 || (##n == 0 && #ExitOnPH0)) {
+		if (!#debug) return false;
+		question "Quit?";
+		if (result) return false;
+	}
+	call Coord;  $$e = $$return;
+	if (#Coloring == 1) {
+		call PaintRegion $$c + $$e, ##n;
+	}
+	call AdjustAllPHs $$c, $$e;
+	call MirrorPHs;
+	if (#Coloring == 2) {
+		call UnpaintPHs;
+		call PaintPHs;
+	}
+	return true;
+
+//==============================================================================
+//. 	プレースホルダ群をまとめて扱うサブルーチン
+//==============================================================================
+
+MirrorPHs: // カーソル位置のプレースホルダの内容をミラーに反映
+	call Coord;  $$cur = $$return;
+	call ListPHsCovering $$cur + $$cur;  $$list = $$return;
+	if (#debug >= 3) title "MirrorPHs: [" + $$list + "]";
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		if (midstr($$list, ##n, 1) != "*") {
+			if ($h[##n][1] != "") {
+				##o = val(midstr($$list, ##n, 1));
+				call TextIn $h[##n][##o];
+				$$t = $$return;
+				##m = 0;
+				while ($h[##n][##m] != "") {
+					if (##m != ##o) {
+						call Select $h[##n][##m];
+						call ToCoord seltoplineno, seltopcolumn;  $$b = $$return;
+						call ToCoord selendlineno, selendcolumn;  $$c = $$return;
+						insert $$t;
+						call Coord;  $$e = $$return;
+						if (#Coloring == 1) {
+							call PaintRegion $$b + $$e, ##n;
+						}
+						call AdjustAllPHs $$c, $$e;
+						call AdjustCoord $$cur, $$c, $$e;  $$cur = $$return;
+					}
+					##m = ##m + 1;
+				}
+			}
+		}
+		if (##n == 0) break;
+	}
+	call MoveTo $$cur;
+	return;
+
+AdjustAllPHs: // 全プレースホルダの座標を調整
+	// $$1 = 編集始点座標
+	// $$2 = 編集終点座標
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			call AdjustRegion $h[##n][##m], $$1, $$2;  $h[##n][##m] = $$return;
+			##m = ##m + 1;
+		}
+		if (##n == 0) break;
+	}
+	call AdjustCoord $bottom, $$1, $$2, true;  $bottom = $$return;
+	return;
+
+GetCurrentPH: // カーソル位置／選択範囲を含む最も内側のプレースホルダのホルダ番号を取得
+	// ##return = ホルダ番号  -1:指定座標はプレースホルダ外
+	if (selecting) {
+		call Region;  $$sel = $$return;
+	} else {
+		call Coord;  $$sel = $$return + $$return;
+	}
+	$$top = "";
+	##p = -1;
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			call RegionCovers $h[##n][##m], $$sel;
+			if (##return) {
+				call BgnCoord $h[##n][##m];
+				if ($$top < $$return) {
+					$$top = $$return;
+					##p = ##n;
+				}
+			}
+			##m = ##m + 1;
+		}
+		if (##n == 0) break;
+	}
+	return ##p;
+
+ListPHsCovering: // 指定座標範囲を含むプレースホルダの一覧を取得
+	// $$1 = 座標範囲
+	// $$return = 該当するプレースホルダの一覧
+	// 例 "*3**0*****": 指定座標範囲は $h[1][3] と $h[4][0] に含まれる。
+	$$list = $list_empty;
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			call RegionCovers $h[##n][##m], $$1;
+			if (##return) {
+				$$list = leftstr($$list, ##n) + str(##m) + midstr($$list, ##n + 1);
+			}
+			##m = ##m + 1;
+		}
+		if (##n == 0) break;
+	}
+	return $$list;
+
+ListPHsExceeding: // 外端が指定座標範囲に含まれるプレースホルダの一覧を取得
+	// $$1 = 座標範囲
+	// $$return = 該当するプレースホルダの一覧
+	// 例 "*3**0*****": 指定座標範囲は $h[1][3] と $h[4][0] の外端を含む。
+	// プレースホルダの外側にゼロ幅の開始タグ／終了タグがあると仮定して、タグが片方でも選択範囲に含まれるプレースホルダを列挙する。
+	$$list = $list_empty;
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			call RegionExceeds $$1, $h[##n][##m];
+			if (##return) {
+				$$list = leftstr($$list, ##n) + str(##m) + midstr($$list, ##n + 1);
+			}
+			##m = ##m + 1;
+		}
+		if (##n == 0) break;
+	}
+	return $$list;
+
+RemovePHs: // プレースホルダを削除
+	// $$1 = 削除するプレースホルダの一覧
+	// ##return = 実際に削除されたかどうか
+	// 例 "*3**0*****": $h[1] と $h[4] を削除する。(ミラー番号は関係なく、すべてのミラーを削除)
+	##done = false;
+	if (strlen($$1) != strlen($list_empty)) return false;
+	if ($$1 == $list_empty) return false;
+	$$list = $$1;
+	if (#debug >= 3) {
+		call PrintPHs;  $$before = $$return;
+	}
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		if (midstr($$list, ##n, 1) != "*") {
+			call GetPrevPH ##n;  ##p = ##return;
+			#next[##p] = #next[##n];
+			##done = true;
+		}
+		if (##n == 0) break;
+	}
+	if (#debug >= 3) {
+		call PrintPHs;  $$after = $$return;
+		call Confirm "RemovePHs:\n[" + $$list + "]\n\nBefore:\n" + $$before + "\n\nAfter:\n" + $$after;
+	}
+	return ##done;
+
+GetPrevPH: // 前のプレースホルダを取得
+	// ##1 = 現在のホルダ番号
+	// ##return = 前のホルダ番号
+	##p = 0;
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		if (##n == 0 || ##n == ##1) break;
+		##p = ##n;
+	}
+	return ##p;
+
+PaintPHs: // すべてのプレースホルダを着色
+	##x = x;  ##y = y;
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			call Select $h[##n][##m];
+			call Paint ##n;
+			##m = ##m + 1;
+		}
+		if (##n == 0) break;
+	}
+	escape;
+	moveto ##x, ##y;
+	return;
+
+UnpaintPHs: // すべてのプレースホルダの色を消す
+	##x = x;  ##y = y;
+	call Select $origin + $bottom;
+	if (#debug >= 3) call Confirm "UnpaintPHs:";
+	colormarker;
+	escape;
+	moveto ##x, ##y;
+	return;
+
+PrintPHs: // すべてのプレースホルダの情報を取得 (デバッグ用)
+	##n = 0;
+	while (true) {
+		##n = #next[##n];
+		##m = 0;
+		while ($h[##n][##m] != "") {
+			$$zzz = $$zzz + "$h[" + str(##n) + "][" + str(##m) + "] = " + $h[##n][##m] + "\n";
+			##m = ##m + 1;
+		}
+		$$zzz = $$zzz + "#next[" + str(##n) + "] = " + str(#next[##n]);
+		if (##n == 0) break;
+		$$zzz = $$zzz + "\n";
+	}
+	return $$zzz;
+
+//==============================================================================
+//. 	座標操作サブルーチン
+//==============================================================================
+// 
+// 座標を表す文字列
+// "0000001100000022"
+//  \______/\______/
+//   lineno  column 
+// 
+// 座標範囲を表す文字列
+// "00000011000000220000003300000044"
+//  \______/\______/\______/\______/
+//   seltop  seltop  selend  selend
+//   lineno  column  lineno  column
+
+PaintRegion: // 座標範囲を着色 (カーソルは範囲末へ移動)
+	// $$1 = 座標範囲
+	// ##2 = 色番号
+	call Select $$1;
+	call Paint ##2;
+	escape;
+	return;
+
+AdjustRegion: // 編集にともなう座標範囲の変化を調整
+	// $$1 = 調整前の座標範囲
+	// $$2 = 編集始点座標
+	// $$3 = 編集終点座標
+	// $$return = 調整後の座標範囲
+	// 「始点 < 終点」なら挿入、「終点 < 始点」なら削除
+	call AdjustCoord midstr($$1,  0, 16), $$2, $$3, false;  $$b = $$return;
+	call AdjustCoord midstr($$1, 16, 16), $$2, $$3, true;   $$d = $$return;
+	if (#debug >= 4) call Confirm "AdjustRegion: \n" + $$1 + "\n↓\n" + $$b + $$d + "\n\n" + $$2 + " = 始点\n" + $$3 + " = 終点";
+	return $$b + $$d;
+
+AdjustCoord: // 編集にともなう座標の変化を調整
+	// $$1 = 調整前の座標
+	// $$2 = 編集始点座標
+	// $$3 = 編集終点座標
+	// ##4 = true:挿入時に追従する
+	// $$return = 調整後の座標
+	// 「始点 < 終点」なら挿入、「終点 < 始点」なら削除
+	if ($$2 < $$1 || ($$1 == $$2 && $$2 < $$3 && ##4)) {
+		##cl = val(midstr($$1, 0, 8));
+		##cc = val(midstr($$1, 8, 8));
+		##bl = val(midstr($$2, 0, 8));
+		##bc = val(midstr($$2, 8, 8));
+		##dl = val(midstr($$3, 0, 8));
+		##dc = val(midstr($$3, 8, 8));
+		if (##bl == ##cl) {
+			##cc = ##cc - ##bc + ##dc;
+		}
+		##cl = ##cl - ##bl + ##dl;
+		return rightstr("00000000" + str(##cl), 8) + rightstr("00000000" + str(##cc), 8);
+	}
+	if ($$3 < $$1 && $$3 < $$2) {
+		return $$3;
+	}
+	return $$1;
+
+RegionIncludes: // 座標範囲が座標を含むか?
+	// $$1 = 座標範囲
+	// $$2 = 座標
+	// ##3 = true:範囲末を含む
+	return (midstr($$1, 0, 16) <= $$2) && ($$2 < midstr($$1, 16, 16) || ($$2 == midstr($$1, 16, 16) && ##3));
+
+RegionCovers: // 座標範囲 1 が座標範囲 2 を含むか?
+	// $$1 = 座標範囲 1
+	// $$2 = 座標範囲 2
+	return (midstr($$1,  0, 16) <= midstr($$2,  0, 16) && midstr($$2, 16, 16) <= midstr($$1, 16, 16));
+
+RegionExceeds: // 座標範囲 1 が座標範囲 2 を越えるか?
+	// $$1 = 座標範囲 1
+	// $$2 = 座標範囲 2
+	// ##return = true:両範囲が交差する／範囲 1 が範囲 2 を含む  false:両範囲が交差しない／範囲 2 が範囲 1 を含む／両範囲が一致する
+	$$b1 = midstr($$1,  0, 16);
+	$$d1 = midstr($$1, 16, 16);
+	$$b2 = midstr($$2,  0, 16);
+	$$d2 = midstr($$2, 16, 16);
+	return ($$b1 < $$b2 && $$b2 < $$d1) || ($$b1 < $$d2 && $$d2 < $$d1);
+
+BgnCoord: // 座標範囲の始点座標を取得
+	// $$1 = 座標範囲
+	return midstr($$1, 0, 16);
+
+EndCoord: // 座標範囲の終点座標を取得
+	// $$1 = 座標範囲
+	return midstr($$1, 16, 16);
+
+ToAbsRegion: // 相対範囲を絶対座標範囲に変換
+	// ##1, ##2 = 始点 (lineno, column)
+	// ##3, ##4 = 終点 (lineno, column)
+	// ##5, ##6 = 原点 (lineno, column)
+	##bl = ##1 + ##5;
+	##bc = ##2 + ##6 * (##1 == 0);
+	##dl = ##3 + ##5;
+	##dc = ##4 + ##6 * (##3 == 0);
+	return rightstr("00000000" + str(##bl), 8) + rightstr("00000000" + str(##bc), 8) + rightstr("00000000" + str(##dl), 8) + rightstr("00000000" + str(##dc), 8);
+
+ToCoord: // 位置を座標に変換
+	// ##1, ##2 = 位置 (lineno, column)
+	return rightstr("00000000" + str(##1), 8) + rightstr("00000000" + str(##2), 8);
+
+ToRegion: // 範囲を座標範囲に変換
+	// ##1, ##2 = 始点 (lineno, column)
+	// ##3, ##4 = 終点 (lineno, column)
+	return rightstr("00000000" + str(##1), 8) + rightstr("00000000" + str(##2), 8) + rightstr("00000000" + str(##3), 8) + rightstr("00000000" + str(##4), 8);
+
+Coord: // カーソル位置の座標を取得
+	return rightstr("00000000" + str(lineno), 8) + rightstr("00000000" + str(column), 8);
+
+Region: // 選択範囲の座標範囲を取得
+	return rightstr("00000000" + str(seltoplineno), 8) + rightstr("00000000" + str(seltopcolumn), 8) + rightstr("00000000" + str(selendlineno), 8) + rightstr("00000000" + str(selendcolumn), 8);
+
+MoveTo: // 座標へカーソル移動
+	moveto2 val(midstr($$1, 8, 8)), val(midstr($$1, 0, 8));
+	return;
+
+Select: // 座標範囲を選択 (endsel しない)
+	moveto2 val(midstr($$1, 8, 8)), val(midstr($$1, 0, 8));
+	beginsel;
+	moveto2 val(midstr($$1, 24, 8)), val(midstr($$1, 16, 8));
+	return;
+
+TextIn: // 座標範囲のテキストを取得
+	return gettext2(val(midstr($$1, 8, 8)), val(midstr($$1, 0, 8)), val(midstr($$1, 24, 8)), val(midstr($$1, 16, 8)), true);
+
+//==============================================================================
+//. 	共通サブルーチン
+//==============================================================================
+
+Paint: // 選択範囲に色を塗る
+	// ##1 = 色番号
+	##rgb = val("0x" + midstr($ColorPalette, ##1 * 7 % strlen($ColorPalette), 6));
+	##bgr = (##rgb & 0x0000FF) * 0x10000 + (##rgb & 0x00FF00) + (##rgb & 0xFF0000) / 0x10000;
+	colormarker #FontColor, ##bgr, 11, 0;
+	return;
+
+GoLeft: // カーソルを左へ 1 桁移動
+	if (column > 0) {
+		left;
+	} else if (lineno > 1) {
+		moveto2 0, lineno - 1;
+		golineend2;
+	}
+	return;
+
+GoRight: // カーソルを右へ 1 桁移動
+	if (column < linelen2) {
+		right;
+	} else if (code != eof) {
+		moveto2 0, lineno + 1;
+	}
+	return;
+
+GetHidemaruEnv: // 動作環境取得
+	// $$1 = キー名
+	// ##return = 値
+	openreg "CURRENTUSER", "Software\\Hidemaruo\\Hidemaru\\Env";
+	##r = getregnum($$1);
+	closereg;
+	return ##r;
+
+Initialize: // 初期化
+	loaddll "hmjre.dll";
+	if (!result) call Error "hmjre.dll がロードできません";
+	#orgstate = #orgstate | (0x01 * imestate);
+	if (imestate) imeswitch;
+	disabledraw;
+	return;
+
+Finalize: // 後始末
+	enabledraw;
+	if (#orgstate & 0x01) imeswitch;
+	freedll;
+	return;
+
+Error: // エラー処理
+	enabledraw;
+	if ($$1 != "") message currentmacrobasename + ": " + $$1;
+	call Finalize;
+	endmacro;
+
+Confirm: // デバッグ用
+	enabledraw;
+	question currentmacrobasename + ": " + $$1;
+	if (result) return;
+	endmacro;
+
+//  		(C) mobitan 2010

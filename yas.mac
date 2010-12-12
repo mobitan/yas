@@ -1,0 +1,196 @@
+// 
+//  	YASnippet Hidemarized
+//  	version 1.0  (2010/12/12)
+//  	by mobitan  http://mobitan.org/
+// 
+
+$IniFile  = currentmacrodirectory + "\\user=" + getenv("USERNAME") + ".ini";
+$SnpRoot  = currentmacrodirectory + "\\snippets";
+$CacheDir = currentmacrodirectory + "\\cache";
+$PrmFile  = getenv("TEMP") + "\\yasnippet-hidemarized.param";
+
+// #debug = 1;
+// if (#debug) $SnpRoot = currentmacrodirectory + "\\test\\snippets";
+disabledraw;
+call Main;
+enabledraw;
+endmacro;
+
+Main:
+	if (imestate) imeswitch;
+	begingroupundo;
+	if (selecting) {
+		$seltext = gettext2(seltopcolumn, seltoplineno, selendcolumn, selendlineno, true);
+	} else {
+		beginsel;  endsel; // アンドゥ回数を揃える
+	}
+	delete;
+	#cc = column;  #cl = lineno;
+	call CutWord;  $keyword = $$return;
+	#bc = column;  #bl = lineno;
+	call Choose;
+	#dc = column;  #dl = lineno;
+	endgroupundo;
+	if (##return) {
+		undo;
+		moveto2 #cc, #cl;
+		return;
+	}
+	moveto2 #bc, #bl;
+	execmacro currentmacrodirectory + "\\bin\\placeholder.mac", $PrmFile;
+	if (getresultex(-1) == "") { // プレースホルダがなかった
+		moveto2 #dc, #dl;
+	}
+	return;
+
+Choose: // スニペット選択
+	while (true) {
+		if ($seltext != "") {
+			insert $seltext;
+			beginsel;  moveto2 #bc, #bl;  endsel;
+		}
+		call Expand $snpfile, $keyword;  ##result = ##return;
+		if (#debug) call Confirm "Main:\nresult = " + str(##result);
+		
+		// 0: 完了。展開されたスニペット文字列とプレースホルダ情報が出力される。
+		if (##result == 0) {
+			break;
+		}
+		// 1: スニペット不明。指定されたキーワードに対応するスニペットが複数存在する。
+		else if (##result == 1) {
+			call Menu $keyword;  $snpfile = $$return;
+			if ($$return == "") return 1;
+		}
+		// 2: キーワード不明。指定されたキーワードに対応するスニペットが存在しない。
+		else if (##result == 2) {
+			insert $keyword;
+			call Listbox;  $keyword = $$return;
+			if ($$return == "") return 2;
+			#bc = column;  #bl = lineno;
+		}
+		// 3: フォルダ不明。指定されたモードに対応するフォルダが存在しない。
+		else if (##result == 3) {
+			call SetMode;
+			if ($$return == "") return 3;
+		}
+		// 4: モード不明。指定された拡張子に対応するモードが定義されていない。
+		else if (##result == 4) {
+			call SetMode;
+			if ($$return == "") return 4;
+		}
+		// 9: 不正な引数、ファイル／フォルダが存在しない、その他のエラー。
+		else {
+			$$out = gettext2(#bc, #bl, column, lineno, true);
+			message currentmacrobasename + ": " + $$out;
+			return 9;
+		}
+	}
+	return 0;
+
+Expand: // スニペット展開
+	// $$1 = スニペットファイル名
+	// $$2 = キーワード
+	$$cmd = "cscript.exe //U //nologo \"" + currentmacrodirectory + "\\bin\\yas.wsf\" \"" + $IniFile + "\" \"" + $CacheDir + "\"";
+	if ($$1 != "") {
+		$$cmd = $$cmd + " \"" + $$1 + "\"";
+	} else {
+		$$cmd = $$cmd + " \"" + $SnpRoot + "\" \"" + filetype + "\" \"" + $$2 + "\"";
+	}
+	if (#debug >= 3) call Confirm "Main:\n" + $$cmd;
+	runex $$cmd, 1, 5, "", 6, "", 2, $PrmFile, 1, "", 2, 1, 2;
+	return getresultex(9);
+
+SetMode: // モードを設定
+	$$mod = getinistr($IniFile, "Mode", filetype);
+	$$mod = input("拡張子 " + filetype + " に対応するモードを設定してください。\nモード名はスニペットのフォルダ名と一致させます。", $$mod);
+	if ($$mod != "") writeinistr $IniFile, "Mode", filetype, $$mod;
+	return $$mod;
+
+Menu: // キーワードが重複するスニペットをメニューで選択
+	// $$1 = キーワード
+	$$mod = getinistr($IniFile, "Mode", filetype);
+	$$modi = $CacheDir + "\\" + $$mod + ".ini";
+	call GsubS $$1, "=", "〓";
+	$$s = getinistr($$modi, "Snippets", $$return);
+	while ($$s != "") {
+		##p = strstr($$s, ";");
+		if (##p < 0) ##p = strlen($$s);
+		$$path[##n] = leftstr($$s, ##p);
+		call GsubS $$path[##n], "=", "〓";
+		$$name[##n] = "&" + str(##n + 1) + ": " + getinistr($$modi, "Names", $$return);
+		$$s = midstr($$s, ##p + 1);
+		##n = ##n + 1;
+	}
+	menuarray $$name, ##n;
+	##result = result;
+	if (##result == 0) return "";
+	if (#debug >= 3) call Confirm "Menu:\n" + $$path[##result - 1];
+	return $$path[##result - 1];
+
+Listbox: // キーワードをリストボックスで選択
+	// $$return = キーワード
+	$$mod = getinistr($IniFile, "Mode", filetype);
+	$$modb = $CacheDir + "\\" + $$mod;
+	writeinistr $PrmFile, "Parameter", "cfgfile",  $CfgFile;
+	writeinistr $PrmFile, "Parameter", "source",   "dic";
+	writeinistr $PrmFile, "Parameter", "dic",      "\"" + $$modb + ".keys\"";
+	writeinistr $PrmFile, "Parameter", "hint",     "\"" + $$modb + ".names\"";
+	writeinistr $PrmFile, "Parameter", "wordhas",  "\"" + getinistr($$modb + ".ini", "Listbox", "keysym") + "\"";
+	writeinistr $PrmFile, "Parameter", "appear",   "listbox";
+	writeinistr $PrmFile, "Parameter", "unsorted", "yes";
+	enabledraw;
+	execmacro currentmacrodirectory + "\\bin\\listbox.mac", $PrmFile;
+	if (!#debug) disabledraw;
+	##result  = getininum($PrmFile, "Return", "result");
+	$$instr   = getinistr($PrmFile, "Return", "instr");
+// 	$$basestr = getinistr($PrmFile, "Return", "basestr");
+	writeinistr $PrmFile, "Parameter", 0, 0;
+	if (##result < 0) return "";
+	beginsel;
+	moveto2 column - strlen($$instr), lineno;
+	if (#debug >= 3) call Confirm "Listbox:\n「" + $$instr + "」";
+	delete;
+	return $$instr;
+
+CutWord: // カーソル左の単語を取得して削除
+	$$mod = getinistr($IniFile, "Mode", filetype);
+	$$modi = $CacheDir + "\\" + $$mod + ".ini";
+	if (!existfile($$modi)) return "";
+	$$keychar = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" + getinistr($$modi, "Listbox", "keysym");
+	##cc = column;  ##cl = lineno;
+	beginsel;
+	left;
+	while (result && strstr($$keychar, char(code)) >= 0) left;
+	if (result) right;
+	$$keyword = gettext2(column, lineno, ##cc, ##cl, true);
+	if (#debug >= 3) call Confirm "CutWord:\n「" + $$keyword + "」";
+	delete;
+	return $$keyword;
+
+GsubS: // 文字列置換
+	// $$1 = 対象文字列
+	// $$2 = 検索文字列
+	// $$3 = 置換文字列
+	if (strstr($$1, $$2) < 0) return $$1;
+	$$s = $$1;
+	while (true) {
+		##p = strstr($$s, $$2);
+		if (##p < 0) break;
+		$$r = $$r + leftstr($$s, ##p) + $$3;
+		$$s = midstr($$s, ##p + strlen($$2));
+	}
+	return $$r + $$s;
+
+Confirm: // デバッグ用
+	enabledraw;
+	question currentmacrobasename + ": " + $$1;
+	if (result) return;
+	endmacro;
+
+/*
+おお=xx■■■
+■■■
+■■■いい
+*/
+
+//  		(C) mobitan 2010
